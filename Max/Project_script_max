@@ -1,0 +1,77 @@
+### Project: mobile elements insertions in 1000genomes data ###
+###############################################################
+
+# Exercise 33: Get the data
+mkdir 1000genomes
+cd ~/1000genomes
+mkdir data
+cd ~/1000genomes/data
+
+curl ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/pilot_data/paper_data_sets/a_map_of_human_variation/low_coverage/sv/CEU.low_coverage.2010_10.MobileElementInsertions.sites.vcf.gz \
+>> 1000genome.data.vcf.gz
+
+gunzip 1000genome.data.vcf.gz
+
+wc -l 1000genome.data.vcf  # 3225
+
+
+
+################################################################################
+### Use the Bedtools alias that have been installed by previous excersises
+### from https://github.com/compbiozurich/UZH-BIO392/blob/master/course-material/2021/imallona/exercises.md
+################################################################################
+
+alias vcftools='~/course/soft/vcftools_0.1.13/bin/vcftools'
+
+vcftools --vcf 1000genome.data.vcf
+
+################################################################################
+
+## Exercise 34 - check how many of these mobile elements insertion overlap in
+## human exons
+
+# download Exon bedfile
+cd ~/1000genome/data
+
+curl https://s3.amazonaws.com/bedtools-tutorials/web/exons.bed >> exons.bed
+
+# now harmonised them by losing the chr prefix in the bed files
+sed 's/chr//g' exons.bed > exon_nochr.bed
+
+# intersect them
+bedtools intersect \                                                                                                                                                                 1 ⚙
+-a ~/1000genome/data/1000genome.data.vcf \
+-b ~/1000genome/data/exon_nochr.bed \
+> >> exonintersect_1000genome   # I think this is an vcf ...?
+# count them words
+wc -l exonintersect_1000genome # 110
+wc -l 1000genome.data.vcftools # 3225
+# ratio: 110/3225 = 34%. We would expect little, wouldnt we?
+
+################################################################################
+
+## Exercise 35 Where do they unset prefentially: active or inactiv eregions.
+## How do we know, where active regions are?
+
+# download hesc.chromHmm.bed
+curl https://s3.amazonaws.com/bedtools-tutorials/web/hesc.chromHmm.bed >> hesc.chromHmm.bed
+
+# since the chromosome are still with "chr" we take that out
+sed 's/chr//g' hesc.chromHmm.bed >> hesc.chromHmm_nochr.bed
+
+# make the intersect with thes nochr.bed file and our data from 100 1000genome
+# and sort it and count it with uniq -c
+
+bedtools intersect \
+-b 1000genome.data.vcf \
+-a hesc.chromHmm_nochr.bed |sort| uniq -c
+
+# so there is plenty of heterochromatine and low CNV regions. But how many of these
+# regions are there in the whole genome? Make the same, just with no intersect
+
+awk '{print $4}' hesc.chromHmm_nochr.bed | sort | uniq -c
+
+# there seem to be much more possible. Makes sense, that we do not want something
+# disturb these regions, right.
+# But are these calculations fair? We didn't take into account the actual
+# span in nucleotide. For that we should take the 2nd row - 3rd row ... I won't do that here ;-)
